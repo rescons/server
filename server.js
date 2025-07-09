@@ -1567,4 +1567,5 @@ app.get("/get-abstract-by-code/:uid/:code", verifyToken, async (req, res) => {
 
 
 // Start Server
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+//Auto Deploy Test Comment here
