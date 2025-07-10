@@ -11,7 +11,7 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "https://stisv.vercel.app",
-    "https://stisv.onrender.com",
+    "http://3.145.110.253",
     "https://materials.iisc.ac.in",
      "https://materials.iisc.ac.in/stis2025",
     "https://stisv-1.onrender.com"
@@ -212,7 +212,7 @@ const transporter = nodemailer.createTransport({
 
 
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 80;
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -242,7 +242,8 @@ const upload = multer({
 });
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 const razorpay = new Razorpay({
@@ -389,21 +390,51 @@ app.post("/save-transaction-id", async (req, res) => {
 });
 
 const User = mongoose.model("User", userSchema);
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ 
+    message: "Server is running", 
+    timestamp: new Date().toISOString(),
+    mongoConnected: mongoose.connection.readyState === 1
+  });
+});
 app.post("/register", async (req, res) => {
   try {
+    console.log("📝 Registration request received - Full body:", req.body);
+    console.log("📝 Registration request received:", { 
+      email: req.body.email, 
+      password: req.body.password ? "***PRESENT***" : "***MISSING***",
+      phone: req.body.phone,
+      givenName: req.body.givenName,
+      fullName: req.body.fullName 
+    });
+
     const { email, password, phone, givenName, familyName, fullName, country, affiliation } = req.body;
 
     if (!email || !password || !phone || !givenName || !fullName || !country || !affiliation) {
+      console.log("❌ Missing required fields:", { email, phone, givenName, fullName, country, affiliation });
       return res.status(400).json({ message: "All required fields must be filled" });
     }
 
+    console.log("🔍 Checking for existing user...");
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      console.log("❌ User already exists:", email);
       return res.status(400).json({ message: "User already exists" });
     }
 
+    console.log("🔐 Hashing password...");
+    console.log("🔐 Password type:", typeof password, "Value:", password ? "***PRESENT***" : "***MISSING***");
+    
+    if (!password || typeof password !== 'string') {
+      console.error("❌ Password is invalid:", password);
+      return res.status(400).json({ message: "Password is required and must be a string" });
+    }
+    
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    console.log("👤 Creating new user...");
     const newUser = new User({
       uid: uuidv4(),
       email,
@@ -416,21 +447,34 @@ app.post("/register", async (req, res) => {
       affiliation,
     });
 
+    console.log("💾 Saving user to database...");
     await newUser.save(); // ✅ Save user first
+    console.log("✅ User saved successfully:", newUser.uid);
 
     // ✅ Send response before long operations like Google Sheets update
-    res.status(201).json({ message: "User registered successfully" });
+    console.log("📤 Sending success response...");
+    res.status(201).json({ message: "User registered successfully", uid: newUser.uid });
 
     // ✅ Call `updateGoogleSheet()` only once (after response is sent)
     console.log("🔄 Attempting to update Google Sheets...");
-    await updateGoogleSheet(newUser);
-    console.log("✅ Google Sheets update was successful!");
+    try {
+      await updateGoogleSheet(newUser);
+      console.log("✅ Google Sheets update was successful!");
+    } catch (sheetsError) {
+      console.error("❌ Google Sheets update failed:", sheetsError.message);
+    }
 
     // ✅ Send emails after response is sent
-    sendRegistrationEmails(email, givenName, fullName, familyName, phone, country, affiliation);
+    console.log("📧 Sending registration emails...");
+    try {
+      sendRegistrationEmails(email, givenName, fullName, familyName, phone, country, affiliation);
+    } catch (emailError) {
+      console.error("❌ Email sending failed:", emailError.message);
+    }
 
   } catch (error) {
     console.error("❌ Error registering user:", error);
+    console.error("❌ Error stack:", error.stack);
 
     if (!res.headersSent) { // ✅ Prevent multiple responses
       res.status(500).json({ message: "Server error", error: error.message });
