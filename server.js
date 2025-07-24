@@ -212,7 +212,7 @@ const transporter = nodemailer.createTransport({
 
 
 
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 5000;
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -679,19 +679,23 @@ app.post("/login", async (req, res) => {
 
 app.post("/create-order", async (req, res) => {
   try {
+    console.log("[CREATE ORDER] Incoming body:", req.body);
     const { amount, currency } = req.body;
+    console.log("[CREATE ORDER] amount:", amount, "currency:", currency);
 
     const options = {
       amount: amount * 100,
       currency,
       receipt: `receipt_${Date.now()}`,
     };
+    console.log("[CREATE ORDER] options:", options);
 
     const order = await razorpay.orders.create(options);
+    console.log("[CREATE ORDER] Razorpay order created:", order);
     res.status(200).json(order);
   } catch (err) {
     console.error("❌ Order creation failed:", err);
-    res.status(500).json({ message: "Order creation failed" });
+    res.status(500).json({ message: "Order creation failed", error: err.message, stack: err.stack });
   }
 });
 
@@ -1607,8 +1611,8 @@ app.get("/get-abstract-by-code/:uid/:code", verifyToken, async (req, res) => {
   }
 });
 
-
-
+const invitationRoutes = require('./routes/invitationRoutes');
+app.use('/api', invitationRoutes);
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
