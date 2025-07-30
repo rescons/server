@@ -15,7 +15,7 @@ app.use(cors({
     "https://materials.iisc.ac.in",
      "https://materials.iisc.ac.in/stis2025",
     "https://stisv-1.onrender.com",
-    "https:api.rescons.in"
+    "https://api.rescons.in"
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
