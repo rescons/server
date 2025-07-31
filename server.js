@@ -359,7 +359,8 @@ const userSchema = new mongoose.Schema({
     currency: String,
     amount: Number,
     status: { type: String, default: "paid" },
-    timestamp: { type: Date, default: Date.now }
+    timestamp: { type: Date, default: Date.now },
+    receiptUrl: String
   }]
 });
 
@@ -1126,10 +1127,10 @@ cloudinaryReceipts.config({
 });
     
 app.post("/upload-receipt", imageUpload.single("receiptFile"), async (req, res) => {
-  const { transactionId } = req.body;
+  const { transactionId, uid, email, fullName } = req.body;
 
-  if (!transactionId || !req.file) {
-    return res.status(400).json({ message: "Transaction ID and file are required." });
+  if (!transactionId || !req.file || !uid || !email) {
+    return res.status(400).json({ message: "Transaction ID, file, and user information are required." });
   }
 
   const uploadToCloudinary = () => {
@@ -1155,13 +1156,45 @@ app.post("/upload-receipt", imageUpload.single("receiptFile"), async (req, res) 
   try {
     const result = await uploadToCloudinary();
 
+    // Save transaction record
     const newTransaction = new Transaction({
       transactionId,
       receiptUrl: result.secure_url
     });
-
     await newTransaction.save();
-    res.status(200).json({ message: "Receipt uploaded successfully", url: result.secure_url });
+
+    // Update user's payment array
+    const user = await User.findOne({ uid: uid });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Add payment to user's payments array
+    const paymentData = {
+      paymentId: transactionId,
+      orderId: `BANK_${transactionId}`,
+      signature: "bank_transfer",
+      category: "Bank Transfer",
+      currency: "INR", // Default to INR for bank transfers
+      amount: 0, // Amount will be verified by admin
+      status: "pending_verification",
+      timestamp: new Date(),
+      receiptUrl: result.secure_url
+    };
+
+    // Check if payment already exists
+    const paymentExists = user.payments.some(p => p.paymentId === transactionId);
+    if (!paymentExists) {
+      user.payments.push(paymentData);
+      await user.save();
+      console.log(`✅ Payment added to user ${email} for transaction ${transactionId}`);
+    }
+
+    res.status(200).json({ 
+      message: "Receipt uploaded successfully", 
+      url: result.secure_url,
+      paymentAdded: !paymentExists
+    });
   } catch (error) {
     console.error("❌ Cloudinary upload failed:", error);
     res.status(500).json({ message: "Upload failed", error: error.message });
