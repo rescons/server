@@ -1127,7 +1127,7 @@ cloudinaryReceipts.config({
 });
     
 app.post("/upload-receipt", imageUpload.single("receiptFile"), async (req, res) => {
-  const { transactionId, uid, email, fullName } = req.body;
+  const { transactionId, uid, email, fullName, country } = req.body;
 
   if (!transactionId || !req.file || !uid || !email) {
     return res.status(400).json({ message: "Transaction ID, file, and user information are required." });
@@ -1169,13 +1169,16 @@ app.post("/upload-receipt", imageUpload.single("receiptFile"), async (req, res) 
       return res.status(404).json({ message: "User not found." });
     }
 
+    // Determine currency based on user's country
+    const currency = country === 'India' ? 'INR' : 'USD';
+    
     // Add payment to user's payments array
     const paymentData = {
       paymentId: transactionId,
       orderId: `BANK_${transactionId}`,
       signature: "bank_transfer",
       category: "Bank Transfer",
-      currency: "INR", // Default to INR for bank transfers
+      currency: currency, // Set currency based on country
       amount: 0, // Amount will be verified by admin
       status: "pending_verification",
       timestamp: new Date(),
