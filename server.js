@@ -1467,25 +1467,25 @@ app.put("/admin/update-abstract-status", verifyAdminToken, async (req, res) => {
     await user.save();
 
     // ✅ Compose email message
-    let emailText = `Dear ${user.fullName},\n\nYour abstract submission (${abstractCode}) has been **${status}**.\n`;
+    // let emailText = `Dear ${user.fullName},\n\nYour abstract submission (${abstractCode}) has been **${status}**.\n`;
 
-    if (status === "Rejected" && remarks) {
-      emailText += `\nRemarks from reviewers:\n"${remarks}"\n`;
-    }
+    // if (status === "Rejected" && remarks) {
+    //   emailText += `\nRemarks from reviewers:\n"${remarks}"\n`;
+    // }
 
-    emailText += `\nThank you for your participation!\n\nBest Regards,\nSTIS-V 2025 Team`;
+    // emailText += `\nThank you for your participation!\n\nBest Regards,\nSTIS-V 2025 Team`;
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: `Abstract Submission Status - STIS-V 2025`,
-      text: emailText,
-    };
+    // const mailOptions = {
+    //   from: process.env.EMAIL_USER,
+    //   to: user.email,
+    //   subject: `Abstract Submission Status - STIS-V 2025`,
+    //   text: emailText,
+    // };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${user.email} for abstract code ${abstractCode} status update: ${status}`);
+    // await transporter.sendMail(mailOptions);
+    // console.log(`✅ Email sent to ${user.email} for abstract code ${abstractCode} status update: ${status}`);
 
-    res.json({ message: `Abstract ${status} successfully`, user });
+    // res.json({ message: `Abstract ${status} successfully`, user });
 
   } catch (error) {
     console.error("❌ Error updating abstract status:", error);
@@ -1649,7 +1649,10 @@ app.get("/get-abstract-by-code/:uid/:code", verifyToken, async (req, res) => {
 });
 
 const invitationRoutes = require('./routes/invitationRoutes');
+const paperRoutes = require('./routes/paperRoutes');
+
 app.use('/api', invitationRoutes);
+app.use('/api/papers', paperRoutes);
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
