@@ -1,7 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const paperController = require('../controllers/paperController');
-const { verifyToken } = require('../server');
+const jwt = require('jsonwebtoken');
+
+// Middleware to verify JWT token (same as in server.js)
+const verifyToken = (req, res, next) => {
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+  if (!token) {
+    return res.status(401).json({ message: "No token, authorization denied" });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ message: "Token is not valid" });
+  }
+};
 
 // Apply authentication middleware to all routes
 router.use(verifyToken);
