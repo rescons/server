@@ -176,6 +176,13 @@ exports.submitPaper = [
         }
       }
 
+      // Generate paper code
+      const generatePaperCode = () => {
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `PAPER_${timestamp}_${random}`;
+      };
+
       // Create paper document
       const paper = new Paper({
         title,
@@ -192,7 +199,8 @@ exports.submitPaper = [
         paperType: paperType || 'Full Paper',
         paperFile: cloudinaryResult.secure_url,
         userId,
-        abstractCode
+        abstractCode,
+        paperCode: generatePaperCode() // Generate paper code explicitly
       });
 
       await paper.save();
