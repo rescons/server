@@ -25,10 +25,7 @@ router.use(verifyToken);
 console.log('📝 Registering paper routes...');
 
 // Specific routes first (before parameterized routes)
-router.post('/submit', (req, res, next) => {
-  console.log('📝 Paper submit route hit');
-  paperController.submitPaper(req, res, next);
-});
+router.post('/submit', paperController.submitPaper);
 router.get('/user', paperController.getPapersByUser);
 
 // Admin routes (before parameterized routes)
