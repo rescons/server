@@ -1651,7 +1651,9 @@ app.get("/get-abstract-by-code/:uid/:code", verifyToken, async (req, res) => {
 const invitationRoutes = require('./routes/invitationRoutes');
 const paperRoutes = require('./routes/paperRoutes');
 
+console.log('🔗 Registering invitation routes...');
 app.use('/api', invitationRoutes);
+console.log('🔗 Registering paper routes...');
 app.use('/api/papers', paperRoutes);
 
 // Start Server
