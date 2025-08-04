@@ -4,22 +4,6 @@ const paperSchema = new mongoose.Schema({
   // Basic paper information
   title: { type: String, required: true },
   abstract: { type: String, required: true },
-  keywords: [String],
-  
-  // Author information
-  firstAuthorName: { type: String, required: true },
-  firstAuthorAffiliation: { type: String, required: true },
-  firstAuthorEmail: { type: String, required: true },
-  
-  presentingAuthorName: { type: String, required: true },
-  presentingAuthorAffiliation: { type: String, required: true },
-  presentingAuthorEmail: { type: String, required: true },
-  
-  otherAuthors: [{
-    name: String,
-    affiliation: String,
-    email: String
-  }],
   
   // File information
   paperFile: { type: String }, // Cloudinary URL for original paper
@@ -55,32 +39,24 @@ const paperSchema = new mongoose.Schema({
   // User association
   userId: { type: String, required: true },
   
-  // Abstract association (if paper is based on an abstract)
-  abstractCode: { type: String },
+  // Abstract association (paper code will be same as abstract code)
+  abstractCode: { type: String, required: true },
   
   // Google Sheets tracking
   googleSheetRow: { type: Number },
   
-  // Additional metadata
+  // Paper type (only two options)
   paperType: {
     type: String,
-    enum: ['Full Paper', 'Short Paper', 'Review Paper'],
-    default: 'Full Paper'
-  },
-  
-  track: {
-    type: String,
-    enum: ['Ironmaking', 'Steelmaking', 'Refractories', 'Surface Engineering', 'Materials Processing', 'Other'],
+    enum: ['FULL PAPER', 'EXTENDED ABSTRACT'],
     required: true
   }
 }, { timestamps: true });
 
-// Generate paper code before saving
+// Paper code will be same as abstract code
 paperSchema.pre('save', function(next) {
-  if (!this.paperCode) {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    this.paperCode = `PAPER_${timestamp}_${random}`;
+  if (!this.paperCode && this.abstractCode) {
+    this.paperCode = this.abstractCode;
   }
   this.updatedAt = new Date();
   next();

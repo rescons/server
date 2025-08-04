@@ -38,7 +38,7 @@ const auth = new google.auth.JWT({
 
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = "13WezerzzuaGoWN3mDEpnmZmgj4I0aS9h3i91X7Msw0g"; // Your actual Sheet ID
-const PAPER_SHEET_NAME = 'Abstract Submissions'; // Sheet name for papers
+const PAPER_SHEET_NAME = 'Paper Submission'; // New sheet name for papers
 
 // Upload file to Cloudinary
 const uploadToCloudinary = async (file, folder = 'papers') => {
@@ -67,13 +67,10 @@ const addPaperToGoogleSheets = async (paperData) => {
   try {
     const values = [
       [
-        paperData.paperCode,
+        paperData.paperCode, // Same as abstract code
         paperData.title,
-        paperData.firstAuthorName,
-        paperData.firstAuthorEmail,
-        paperData.presentingAuthorName,
-        paperData.presentingAuthorEmail,
-        paperData.track,
+        paperData.abstract,
+        paperData.paperType,
         paperData.status,
         paperData.submittedAt,
         paperData.paperFile || '',
@@ -85,7 +82,7 @@ const addPaperToGoogleSheets = async (paperData) => {
 
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${PAPER_SHEET_NAME}!A:M`,
+      range: `${PAPER_SHEET_NAME}!A:J`,
       valueInputOption: 'RAW',
       insertDataOption: 'INSERT_ROWS',
       resource: { values }
@@ -139,15 +136,6 @@ exports.submitPaper = [
       const {
         title,
         abstract,
-        keywords,
-        firstAuthorName,
-        firstAuthorAffiliation,
-        firstAuthorEmail,
-        presentingAuthorName,
-        presentingAuthorAffiliation,
-        presentingAuthorEmail,
-        otherAuthors,
-        track,
         paperType,
         abstractCode
       } = req.body;
@@ -155,7 +143,7 @@ exports.submitPaper = [
       const userId = req.user.uid;
 
       // Validate required fields
-      if (!title || !abstract || !firstAuthorName || !presentingAuthorName || !track) {
+      if (!title || !abstract || !paperType || !abstractCode) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
@@ -166,41 +154,15 @@ exports.submitPaper = [
       // Upload file to Cloudinary
       const cloudinaryResult = await uploadToCloudinary(req.file, 'papers');
 
-      // Parse other authors if provided
-      let parsedOtherAuthors = [];
-      if (otherAuthors) {
-        try {
-          parsedOtherAuthors = JSON.parse(otherAuthors);
-        } catch (e) {
-          console.error('Error parsing other authors:', e);
-        }
-      }
-
-      // Generate paper code
-      const generatePaperCode = () => {
-        const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return `PAPER_${timestamp}_${random}`;
-      };
-
       // Create paper document
       const paper = new Paper({
         title,
         abstract,
-        keywords: keywords ? keywords.split(',').map(k => k.trim()) : [],
-        firstAuthorName,
-        firstAuthorAffiliation,
-        firstAuthorEmail,
-        presentingAuthorName,
-        presentingAuthorAffiliation,
-        presentingAuthorEmail,
-        otherAuthors: parsedOtherAuthors,
-        track,
-        paperType: paperType || 'Full Paper',
+        paperType,
         paperFile: cloudinaryResult.secure_url,
         userId,
         abstractCode,
-        paperCode: generatePaperCode() // Generate paper code explicitly
+        paperCode: abstractCode // Paper code same as abstract code
       });
 
       await paper.save();
