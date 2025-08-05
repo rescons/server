@@ -408,10 +408,12 @@ exports.deletePaper = async (req, res) => {
       }
     }
 
-    res.json({ message: 'Paper deleted successfully' });
+    res.json({ message: 'Paper deleted deleted successfully' });
 
   } catch (error) {
     console.error('Paper deletion error:', error);
     res.status(500).json({ error: 'Failed to delete paper' });
   }
 }; 
+
+//Adding comment for check
