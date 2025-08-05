@@ -43,21 +43,32 @@ const PAPER_SHEET_NAME = 'Paper Submission'; // New sheet name for papers
 // Upload file to Cloudinary
 const uploadToCloudinary = async (file, folder = 'papers') => {
   try {
-    const result = await cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'raw',
-        folder: folder,
-        format: path.extname(file.originalname).substring(1)
-      },
-      (error, result) => {
-        if (error) throw error;
-        return result;
-      }
-    ).end(file.buffer);
+    console.log('📁 Starting Cloudinary upload for file:', file.originalname);
+    console.log('📁 File buffer size:', file.buffer.length);
+    console.log('📁 Folder:', folder);
     
-    return result;
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'raw',
+          folder: folder,
+          format: path.extname(file.originalname).substring(1)
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary upload error:', error);
+            reject(error);
+          } else {
+            console.log('✅ Cloudinary upload successful:', result.secure_url);
+            resolve(result);
+          }
+        }
+      );
+      
+      uploadStream.end(file.buffer);
+    });
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
+    console.error('❌ Cloudinary upload error:', error);
     throw new Error('File upload failed');
   }
 };
@@ -65,6 +76,13 @@ const uploadToCloudinary = async (file, folder = 'papers') => {
 // Add paper to Google Sheets
 const addPaperToGoogleSheets = async (paperData) => {
   try {
+    console.log('📊 Adding paper to Google Sheets:', {
+      paperCode: paperData.paperCode,
+      title: paperData.title,
+      paperFile: paperData.paperFile,
+      updatedPaperFile: paperData.updatedPaperFile
+    });
+    
     const values = [
       [
         paperData.paperCode, // Same as abstract code
@@ -152,9 +170,12 @@ exports.submitPaper = [
       }
 
       // Upload file to Cloudinary
+      console.log('📤 Starting file upload to Cloudinary...');
       const cloudinaryResult = await uploadToCloudinary(req.file, 'papers');
+      console.log('📤 Cloudinary result:', cloudinaryResult);
 
       // Create paper document
+      console.log('📝 Creating paper document...');
       const paper = new Paper({
         title,
         abstract,
@@ -164,19 +185,25 @@ exports.submitPaper = [
         abstractCode,
         paperCode: abstractCode // Paper code same as abstract code
       });
+      console.log('📝 Paper document created with file URL:', paper.paperFile);
 
+      console.log('💾 Saving paper to database...');
       await paper.save();
+      console.log('💾 Paper saved successfully with ID:', paper._id);
 
       // Add to Google Sheets
       try {
+        console.log('📊 Adding to Google Sheets...');
         const sheetRange = await addPaperToGoogleSheets(paper);
+        console.log('📊 Google Sheets range:', sheetRange);
         const rowMatch = sheetRange.match(/A(\d+):M\d+/);
         if (rowMatch) {
           paper.googleSheetRow = parseInt(rowMatch[1]);
           await paper.save();
+          console.log('📊 Google Sheets row updated:', paper.googleSheetRow);
         }
       } catch (sheetsError) {
-        console.error('Google Sheets error (non-blocking):', sheetsError);
+        console.error('❌ Google Sheets error (non-blocking):', sheetsError);
         // Continue even if Google Sheets fails
       }
 
