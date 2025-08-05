@@ -218,6 +218,15 @@ exports.submitPaper = [
 
     } catch (error) {
       console.error('Paper submission error:', error);
+      
+      // Handle duplicate key error specifically
+      if (error.code === 11000 && error.keyPattern && error.keyPattern.paperCode) {
+        return res.status(409).json({ 
+          error: 'A paper has already been submitted for this abstract code',
+          details: 'Only one paper submission is allowed per abstract'
+        });
+      }
+      
       res.status(500).json({ error: 'Failed to submit paper' });
     }
   }
@@ -408,12 +417,10 @@ exports.deletePaper = async (req, res) => {
       }
     }
 
-    res.json({ message: 'Paper deleted deleted successfully' });
+    res.json({ message: 'Paper deleted successfully' });
 
   } catch (error) {
     console.error('Paper deletion error:', error);
     res.status(500).json({ error: 'Failed to delete paper' });
   }
 }; 
-
-//Adding comment for check
