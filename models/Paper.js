@@ -13,7 +13,7 @@ const paperSchema = new mongoose.Schema({
   paperCode: { type: String, unique: true, required: true },
   status: {
     type: String,
-    enum: ['Submitted', 'Under Review', 'Review Completed', 'Accepted', 'Rejected', 'Revision Required'],
+    enum: ['Submitted', 'Under Review', 'Review Completed', 'Accepted', 'Rejected', 'Revision Required', 'Revision Submitted'],
     default: 'Submitted'
   },
   
