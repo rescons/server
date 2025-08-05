@@ -47,12 +47,20 @@ const uploadToCloudinary = async (file, folder = 'papers') => {
     console.log('📁 File buffer size:', file.buffer.length);
     console.log('📁 Folder:', folder);
     
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    const isPDF = fileExtension === '.pdf';
+    
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           resource_type: 'raw',
           folder: folder,
-          format: path.extname(file.originalname).substring(1)
+          format: isPDF ? 'pdf' : path.extname(file.originalname).substring(1),
+          public_id: `${folder}/${path.parse(file.originalname).name}_${Date.now()}`,
+          // For PDFs, ensure they're treated as downloadable files
+          flags: isPDF ? 'attachment' : undefined,
+          // Ensure proper content type for PDFs
+          transformation: isPDF ? { fetch_format: 'pdf' } : undefined
         },
         (error, result) => {
           if (error) {
@@ -60,6 +68,8 @@ const uploadToCloudinary = async (file, folder = 'papers') => {
             reject(error);
           } else {
             console.log('✅ Cloudinary upload successful:', result.secure_url);
+            console.log('📁 File type:', isPDF ? 'PDF' : 'Document');
+            console.log('📁 Resource type:', result.resource_type);
             resolve(result);
           }
         }
@@ -113,22 +123,53 @@ const addPaperToGoogleSheets = async (paperData) => {
   }
 };
 
+// Find paper row in Google Sheets
+const findPaperRowInGoogleSheets = async (paperCode) => {
+  try {
+    console.log('🔍 Searching for paper in Google Sheets:', paperCode);
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${PAPER_SHEET_NAME}!A:A`
+    });
+    
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex(row => row[0] === paperCode);
+    
+    if (rowIndex !== -1) {
+      console.log('📊 Found paper in Google Sheets at row:', rowIndex + 1);
+      return rowIndex + 1;
+    } else {
+      console.log('❌ Paper not found in Google Sheets');
+      return null;
+    }
+  } catch (error) {
+    console.error('Google Sheets search error:', error);
+    return null;
+  }
+};
+
 // Update paper in Google Sheets
 const updatePaperInGoogleSheets = async (paperData, rowIndex) => {
   try {
+    console.log('📊 Updating paper in Google Sheets:', {
+      paperCode: paperData.paperCode,
+      title: paperData.title,
+      paperFile: paperData.paperFile,
+      updatedPaperFile: paperData.updatedPaperFile,
+      status: paperData.status,
+      rowIndex: rowIndex
+    });
+    
     const values = [
       [
-        paperData.paperCode,
+        paperData.paperCode, // Same as abstract code
         paperData.title,
-        paperData.firstAuthorName,
-        paperData.firstAuthorEmail,
-        paperData.presentingAuthorName,
-        paperData.presentingAuthorEmail,
-        paperData.track,
+        paperData.abstract,
+        paperData.paperType,
         paperData.status,
         paperData.submittedAt,
         paperData.paperFile || '',
-        paperData.updatedPaperFile || '',
+        paperData.updatedPaperFile || '', // Column H - Updated Paper File URL
         paperData.review?.recommendation || '',
         paperData.review?.reviewerComments || ''
       ]
@@ -136,10 +177,13 @@ const updatePaperInGoogleSheets = async (paperData, rowIndex) => {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${PAPER_SHEET_NAME}!A${rowIndex}:M${rowIndex}`,
+      range: `${PAPER_SHEET_NAME}!A${rowIndex}:J${rowIndex}`,
       valueInputOption: 'RAW',
       resource: { values }
     });
+    
+    console.log('📊 Google Sheets updated successfully for row:', rowIndex);
+    console.log('📊 Updated Paper File URL in Column H:', paperData.updatedPaperFile);
   } catch (error) {
     console.error('Google Sheets update error:', error);
     throw new Error('Failed to update Google Sheets');
@@ -196,7 +240,7 @@ exports.submitPaper = [
         console.log('📊 Adding to Google Sheets...');
         const sheetRange = await addPaperToGoogleSheets(paper);
         console.log('📊 Google Sheets range:', sheetRange);
-        const rowMatch = sheetRange.match(/A(\d+):M\d+/);
+                 const rowMatch = sheetRange.match(/A(\d+):J\d+/);
         if (rowMatch) {
           paper.googleSheetRow = parseInt(rowMatch[1]);
           await paper.save();
@@ -289,13 +333,35 @@ exports.updatePaper = [
 
       await paper.save();
 
-      // Update Google Sheets
-      if (paper.googleSheetRow) {
+      // Update Google Sheets - Enhanced approach
+      console.log('📊 Starting Google Sheets update for paper:', paper.paperCode);
+      console.log('📊 Updated Paper File URL:', paper.updatedPaperFile);
+      
+      let rowToUpdate = paper.googleSheetRow;
+      
+      // If no row is stored, try to find it
+      if (!rowToUpdate) {
+        console.log('⚠️ No Google Sheets row stored, searching for paper...');
+        rowToUpdate = await findPaperRowInGoogleSheets(paper.paperCode);
+        if (rowToUpdate) {
+          // Update the paper with the correct row number
+          paper.googleSheetRow = rowToUpdate;
+          await paper.save();
+          console.log('📊 Updated paper with Google Sheets row:', paper.googleSheetRow);
+        }
+      }
+      
+      // Update Google Sheets if we have a row
+      if (rowToUpdate) {
         try {
-          await updatePaperInGoogleSheets(paper, paper.googleSheetRow);
+          console.log('📊 Updating Google Sheets for row:', rowToUpdate);
+          await updatePaperInGoogleSheets(paper, rowToUpdate);
+          console.log('📊 Google Sheets update completed successfully');
         } catch (sheetsError) {
           console.error('Google Sheets update error (non-blocking):', sheetsError);
         }
+      } else {
+        console.log('❌ Could not find paper in Google Sheets for update');
       }
 
       res.json({
@@ -354,13 +420,34 @@ exports.updatePaperReview = async (req, res) => {
 
     await paper.save();
 
-    // Update Google Sheets
-    if (paper.googleSheetRow) {
+    // Update Google Sheets - Enhanced approach for reviews
+    console.log('📊 Starting Google Sheets review update for paper:', paper.paperCode);
+    
+    let rowToUpdate = paper.googleSheetRow;
+    
+    // If no row is stored, try to find it
+    if (!rowToUpdate) {
+      console.log('⚠️ No Google Sheets row stored for review, searching for paper...');
+      rowToUpdate = await findPaperRowInGoogleSheets(paper.paperCode);
+      if (rowToUpdate) {
+        // Update the paper with the correct row number
+        paper.googleSheetRow = rowToUpdate;
+        await paper.save();
+        console.log('📊 Updated paper with Google Sheets row:', paper.googleSheetRow);
+      }
+    }
+    
+    // Update Google Sheets if we have a row
+    if (rowToUpdate) {
       try {
-        await updatePaperInGoogleSheets(paper, paper.googleSheetRow);
+        console.log('📊 Updating Google Sheets for review at row:', rowToUpdate);
+        await updatePaperInGoogleSheets(paper, rowToUpdate);
+        console.log('📊 Google Sheets review update completed successfully');
       } catch (sheetsError) {
         console.error('Google Sheets update error (non-blocking):', sheetsError);
       }
+    } else {
+      console.log('❌ Could not find paper in Google Sheets for review update');
     }
 
     res.json({
