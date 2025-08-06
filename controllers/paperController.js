@@ -398,24 +398,42 @@ exports.updatePaperReview = async (req, res) => {
       return res.status(404).json({ error: 'Paper not found' });
     }
 
-    // Update review information
-    paper.review = {
-      reviewerComments,
-      technicalScore: parseFloat(technicalScore),
-      presentationScore: parseFloat(presentationScore),
-      overallScore: parseFloat(overallScore),
-      recommendation,
-      reviewerName,
+    // Update review information - all fields are optional
+    const reviewData = {
       reviewDate: new Date()
     };
 
-    // Update status based on recommendation
-    if (recommendation === 'Accept' || recommendation === 'Accept with Minor Revisions') {
-      paper.status = 'Accepted';
-    } else if (recommendation === 'Major Revisions Required') {
-      paper.status = 'Revision Required';
-    } else if (recommendation === 'Reject') {
-      paper.status = 'Rejected';
+    // Only add fields that are provided
+    if (reviewerComments && reviewerComments.trim()) {
+      reviewData.reviewerComments = reviewerComments.trim();
+    }
+    if (technicalScore && technicalScore !== '') {
+      reviewData.technicalScore = parseFloat(technicalScore);
+    }
+    if (presentationScore && presentationScore !== '') {
+      reviewData.presentationScore = parseFloat(presentationScore);
+    }
+    if (overallScore && overallScore !== '') {
+      reviewData.overallScore = parseFloat(overallScore);
+    }
+    if (recommendation && recommendation.trim()) {
+      reviewData.recommendation = recommendation.trim();
+    }
+    if (reviewerName && reviewerName.trim()) {
+      reviewData.reviewerName = reviewerName.trim();
+    }
+
+    paper.review = reviewData;
+
+    // Update status based on recommendation (only if recommendation is provided)
+    if (recommendation && recommendation.trim()) {
+      if (recommendation === 'Accept' || recommendation === 'Accept with Minor Revisions') {
+        paper.status = 'Accepted';
+      } else if (recommendation === 'Major Revisions Required') {
+        paper.status = 'Revision Required';
+      } else if (recommendation === 'Reject') {
+        paper.status = 'Rejected';
+      }
     }
 
     await paper.save();
