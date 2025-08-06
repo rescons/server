@@ -19,12 +19,12 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.doc', '.docx', '.pdf'];
+    const allowedTypes = ['.doc', '.docx'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only .doc, .docx, and .pdf files are allowed'));
+      cb(new Error('Only .doc and .docx files are allowed. PDF files are not supported.'));
     }
   }
 });
@@ -47,20 +47,13 @@ const uploadToCloudinary = async (file, folder = 'papers') => {
     console.log('📁 File buffer size:', file.buffer.length);
     console.log('📁 Folder:', folder);
     
-    const fileExtension = path.extname(file.originalname).toLowerCase();
-    const isPDF = fileExtension === '.pdf';
-    
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           resource_type: 'raw',
           folder: folder,
-          format: isPDF ? 'pdf' : path.extname(file.originalname).substring(1),
-          public_id: `${folder}/${path.parse(file.originalname).name}_${Date.now()}`,
-          // For PDFs, ensure they're treated as downloadable files
-          flags: isPDF ? 'attachment' : undefined,
-          // Ensure proper content type for PDFs
-          transformation: isPDF ? { fetch_format: 'pdf' } : undefined
+          format: path.extname(file.originalname).substring(1),
+          public_id: `${folder}/${path.parse(file.originalname).name}_${Date.now()}`
         },
         (error, result) => {
           if (error) {
@@ -68,7 +61,7 @@ const uploadToCloudinary = async (file, folder = 'papers') => {
             reject(error);
           } else {
             console.log('✅ Cloudinary upload successful:', result.secure_url);
-            console.log('📁 File type:', isPDF ? 'PDF' : 'Document');
+            console.log('📁 File type: Document');
             console.log('📁 Resource type:', result.resource_type);
             resolve(result);
           }
