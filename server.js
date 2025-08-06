@@ -310,11 +310,13 @@ const userSchema = new mongoose.Schema({
 
   // 🆕 Additional fields for Registration
   title: { type: String, default: "" },
+  category1: { type: String, default: null },
   address: { type: String, default: "" },
   zipcode: { type: String, default: "" },
   dietaryPreferenceAuthor: { type: String, default: "" },
   accompanyingPersons: [{
-    name: String,
+    firstName: String,
+    lastName: String,
     relation: String,
     dietaryPreference: String,
   }],
