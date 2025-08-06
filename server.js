@@ -310,7 +310,7 @@ const userSchema = new mongoose.Schema({
 
   // 🆕 Additional fields for Registration
   title: { type: String, default: "" },
-  category1: { type: String, default: null },
+  category1: { type: String, default: "" },
   address: { type: String, default: "" },
   zipcode: { type: String, default: "" },
   dietaryPreferenceAuthor: { type: String, default: "" },
@@ -396,76 +396,6 @@ app.post("/save-transaction-id", async (req, res) => {
 });
 
 const User = mongoose.model("User", userSchema);
-
-// Test endpoint to check schema
-app.get("/test-schema", async (req, res) => {
-  try {
-    console.log("🔍 Testing User schema...");
-    console.log("📋 User schema fields:", Object.keys(userSchema.paths));
-    
-    // Check if category1 field exists in schema
-    const hasCategory1 = userSchema.paths.category1;
-    console.log("✅ category1 field exists:", !!hasCategory1);
-    
-    // Check if accompanyingPersons field exists in schema
-    const hasAccompanyingPersons = userSchema.paths.accompanyingPersons;
-    console.log("✅ accompanyingPersons field exists:", !!hasAccompanyingPersons);
-    
-    res.json({
-      schemaFields: Object.keys(userSchema.paths),
-      hasCategory1: !!hasCategory1,
-      hasAccompanyingPersons: !!hasAccompanyingPersons
-    });
-  } catch (error) {
-    console.error("❌ Schema test error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Test endpoint to create a user with new fields
-app.post("/test-create-user", async (req, res) => {
-  try {
-    console.log("🧪 Creating test user with new fields...");
-    
-    const testUser = new User({
-      uid: "test-" + Date.now(),
-      email: "test@example.com",
-      password: "testpass",
-      phone: "1234567890",
-      givenName: "Test",
-      familyName: "User",
-      fullName: "Test User",
-      country: "India",
-      affiliation: "Test University",
-      category1: "Speaker",
-      title: "Dr.",
-      address: "Test Address",
-      zipcode: "123456",
-      dietaryPreferenceAuthor: "Vegetarian",
-      accompanyingPersons: [{
-        firstName: "John",
-        lastName: "Doe",
-        relation: "Spouse",
-        dietaryPreference: "Non-Vegetarian"
-      }]
-    });
-    
-    await testUser.save();
-    console.log("✅ Test user created successfully:", testUser.uid);
-    
-    res.json({
-      success: true,
-      user: {
-        uid: testUser.uid,
-        category1: testUser.category1,
-        accompanyingPersons: testUser.accompanyingPersons
-      }
-    });
-  } catch (error) {
-    console.error("❌ Test user creation error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -590,22 +520,18 @@ async function sendRegistrationEmails(email, givenName, fullName, familyName, ph
 app.get("/user-info/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
-    console.log("🔍 Fetching user info for UID:", uid);
-    
     const user = await User.findOne({ uid });
 
     if (!user) {
-      console.log("❌ User not found for UID:", uid);
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("👤 User found:", user.email);
-    console.log("📝 User data being sent:", JSON.stringify({
+    console.log("📋 User info requested for UID:", uid);
+    console.log("📋 User data being sent:", JSON.stringify({
       category1: user.category1,
-      accompanyingPersons: user.accompanyingPersons,
-      title: user.title,
-      address: user.address,
-      zipcode: user.zipcode
+      accompanyingPersons: user.accompanyingPersons?.length || 0,
+      selectedCategory: user.selectedCategory,
+      payments: user.payments?.length || 0
     }, null, 2));
 
     res.status(200).json(user); // Send the full user object (frontend can pick needed fields)
@@ -620,29 +546,29 @@ app.put("/user-info/update/:uid", async (req, res) => {
     const { uid } = req.params;
     const updateData = req.body; // whatever fields frontend sends
     
-    console.log("🔍 Update request for UID:", uid);
-    console.log("📦 Update data received:", JSON.stringify(updateData, null, 2));
+    console.log("🔄 Backend received update data:", JSON.stringify(updateData, null, 2));
+    
+    // Debug: Check if accompanyingPersons is in the update data
+    if (updateData.accompanyingPersons) {
+      console.log("📋 Accompanying Persons data received:", updateData.accompanyingPersons);
+    }
+    
+    // Debug: Check if category1 is in the update data
+    if (updateData.category1) {
+      console.log("📋 Category1 data received:", updateData.category1);
+    } else {
+      console.log("⚠️ Category1 is missing from received data");
+    }
     
     if (updateData.dietaryPreferenceAuthor === "Other" && updateData.otherDietaryPreference) {
       updateData.dietaryPreferenceAuthor = updateData.otherDietaryPreference;
       delete updateData.otherDietaryPreference;
     }
-    
     const user = await User.findOne({ uid });
 
     if (!user) {
-      console.log("❌ User not found for UID:", uid);
       return res.status(404).json({ message: "User not found" });
     }
-
-    console.log("👤 User found:", user.email);
-    console.log("📝 Current user data:", JSON.stringify({
-      category1: user.category1,
-      accompanyingPersons: user.accompanyingPersons,
-      title: user.title,
-      address: user.address,
-      zipcode: user.zipcode
-    }, null, 2));
 
     // Smart update: merge only provided fields
     for (let key in updateData) {
@@ -656,15 +582,13 @@ app.put("/user-info/update/:uid", async (req, res) => {
       }
     }
 
-    console.log("💾 Saving user with updated data...");
     await user.save();
     console.log(`✅ User updated successfully: ${uid}`);
-    console.log("📝 Updated user data:", JSON.stringify({
+    console.log("📋 Final user data after save:", JSON.stringify({
       category1: user.category1,
       accompanyingPersons: user.accompanyingPersons,
-      title: user.title,
-      address: user.address,
-      zipcode: user.zipcode
+      selectedCategory: user.selectedCategory,
+      payments: user.payments?.length || 0
     }, null, 2));
 
     res.status(200).json({ message: "User info updated successfully", user });
