@@ -17,11 +17,11 @@ router.get('/invitation-request/:uid', async (req, res) => {
 // Create or update invitation request
 router.post('/invitation-request', async (req, res) => {
   try {
-    const { uid, name, address, passportNumber, passportExpiry, country, dob } = req.body;
+    const { uid, name, address, passportNumber, passportExpiry, country, dob, nationality } = req.body;
     if (!uid) return res.status(400).json({ message: 'UID is required' });
     const data = await InvitationRequest.findOneAndUpdate(
       { uid },
-      { name, address, passportNumber, passportExpiry, country, dob },
+      { name, address, passportNumber, passportExpiry, country, dob, nationality },
       { upsert: true, new: true }
     );
     res.json(data);

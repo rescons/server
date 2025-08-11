@@ -7,6 +7,7 @@ const InvitationRequestSchema = new mongoose.Schema({
   passportNumber: String,
   passportExpiry: String,
   country: String,
+  nationality: String,
   dob: String,
   createdAt: { type: Date, default: Date.now }
 });
