@@ -2015,6 +2015,7 @@ const userSchema = new mongoose.Schema({
     lastName: String,
     relation: String,
     dietaryPreference: String,
+    citizenship: String,
   }],
   selectedCategory: { type: String, default: "" },
  selectedCategoryDetails: {
