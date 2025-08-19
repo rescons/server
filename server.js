@@ -1686,17 +1686,92 @@ app.use('/api', invitationRoutes);
 console.log('🔗 Registering paper routes...');
 app.use('/api/papers', paperRoutes);
 
+// Test endpoint to verify request body parsing
+app.post("/test-body", (req, res) => {
+  console.log("🧪 Test endpoint hit");
+  console.log("🧪 Request body:", req.body);
+  console.log("🧪 Request headers:", req.headers);
+  res.json({ 
+    message: "Test successful", 
+    body: req.body, 
+    bodyType: typeof req.body,
+    hasEmail: !!req.body.email,
+    hasPassword: !!req.body.newPassword
+  });
+});
+
+// Test bcrypt functionality
+app.post("/test-bcrypt", async (req, res) => {
+  try {
+    console.log("🧪 Testing bcrypt functionality");
+    const testPassword = "TestPassword123!";
+    console.log("🧪 Test password:", testPassword, "Type:", typeof testPassword);
+    
+    const hashed = await bcrypt.hash(testPassword, 10);
+    console.log("🧪 Bcrypt hash successful:", hashed ? "Yes" : "No");
+    
+    const isMatch = await bcrypt.compare(testPassword, hashed);
+    console.log("🧪 Bcrypt compare successful:", isMatch);
+    
+    res.json({ 
+      message: "Bcrypt test successful", 
+      testPassword,
+      hashed: !!hashed,
+      compare: isMatch
+    });
+  } catch (error) {
+    console.error("🧪 Bcrypt test failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Register the reset-password route
 app.post("/reset-password", async (req, res) => {
-  console.log("🔐 Reset password request received:", { email: req.body.email, hasPassword: !!req.body.newPassword });
+  console.log("🔐 Reset password request received");
+  console.log("🔐 Full request body:", JSON.stringify(req.body, null, 2));
+  console.log("🔐 Request headers:", req.headers);
   
   try {
     const { email, newPassword } = req.body;
+
+    console.log("🔐 Extracted values:", { 
+      email: email, 
+      emailType: typeof email,
+      newPassword: newPassword, 
+      newPasswordType: typeof newPassword,
+      newPasswordLength: newPassword ? newPassword.length : 'N/A'
+    });
 
     if (!email || !newPassword) {
       console.log("❌ Missing required fields:", { email: !!email, password: !!newPassword });
       return res.status(400).json({ message: "Email and new password are required" });
     }
+
+    // Additional validation for password
+    if (typeof newPassword !== 'string') {
+      console.log("❌ Password is not a string:", { type: typeof newPassword, value: newPassword });
+      return res.status(400).json({ message: "Password must be a string" });
+    }
+
+    if (newPassword.trim().length === 0) {
+      console.log("❌ Password is empty or whitespace only");
+      return res.status(400).json({ message: "Password cannot be empty" });
+    }
+
+    // Ensure password is not undefined or null after validation
+    if (!newPassword || newPassword === undefined || newPassword === null) {
+      console.log("❌ Password is still undefined/null after validation");
+      return res.status(400).json({ message: "Invalid password value" });
+    }
+
+    // Log the final password value before hashing
+    console.log("🔐 Final password validation passed:", {
+      value: newPassword,
+      type: typeof newPassword,
+      length: newPassword.length,
+      isString: typeof newPassword === 'string',
+      isEmpty: newPassword.length === 0
+    });
 
     console.log("🔍 Looking for user with email:", email);
     // Check if the user exists in the database
@@ -1708,8 +1783,41 @@ app.post("/reset-password", async (req, res) => {
     }
 
     console.log("✅ User found, hashing new password...");
+    console.log("🔐 Password to hash:", { 
+      value: newPassword, 
+      type: typeof newPassword, 
+      length: newPassword.length,
+      trimmed: newPassword.trim().length
+    });
+    
+    // Additional safety check before bcrypt
+    if (!newPassword || typeof newPassword !== 'string') {
+      console.log("❌ Password validation failed before bcrypt");
+      return res.status(400).json({ message: "Invalid password format" });
+    }
+    
+    console.log("🔐 About to hash password with bcrypt...");
+    console.log("🔐 Bcrypt input:", { 
+      password: newPassword, 
+      type: typeof newPassword, 
+      length: newPassword.length 
+    });
+    
     // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    let hashedPassword;
+    try {
+      hashedPassword = await bcrypt.hash(newPassword, 10);
+      console.log("✅ Bcrypt hash successful");
+    } catch (bcryptError) {
+      console.error("❌ Bcrypt hash failed:", bcryptError);
+      console.error("❌ Bcrypt error details:", {
+        message: bcryptError.message,
+        stack: bcryptError.stack,
+        inputType: typeof newPassword,
+        inputLength: newPassword ? newPassword.length : 'N/A'
+      });
+      return res.status(500).json({ message: "Password hashing failed", error: bcryptError.message });
+    }
 
     console.log("💾 Updating user password...");
     // Update the password
