@@ -410,8 +410,14 @@ app.post("/register", async (req, res) => {
   try {
     const { email, password, phone, givenName, familyName, fullName, country, affiliation } = req.body;
 
+    // Ensure all required fields are present
     if (!email || !password || !phone || !givenName || !fullName || !country || !affiliation) {
       return res.status(400).json({ message: "All required fields must be filled" });
+    }
+
+    // Ensure password is a string and not empty
+    if (typeof password !== "string" || !password.trim()) {
+      return res.status(400).json({ message: "Password must be a valid non-empty string" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -433,23 +439,22 @@ app.post("/register", async (req, res) => {
       affiliation,
     });
 
-    await newUser.save(); // ✅ Save user first
+    await newUser.save(); // Save user first
 
-    // ✅ Send response before long operations like Google Sheets update
+    // Send response before long operations like Google Sheets update
     res.status(201).json({ message: "User registered successfully" });
 
-    // ✅ Call `updateGoogleSheet()` only once (after response is sent)
+    // Update Google Sheets and send emails after the response is sent
     console.log("🔄 Attempting to update Google Sheets...");
     await updateGoogleSheet(newUser);
     console.log("✅ Google Sheets update was successful!");
 
-    // ✅ Send emails after response is sent
     sendRegistrationEmails(email, givenName, fullName, familyName, phone, country, affiliation);
 
   } catch (error) {
     console.error("❌ Error registering user:", error);
 
-    if (!res.headersSent) { // ✅ Prevent multiple responses
+    if (!res.headersSent) { // Prevent multiple responses
       res.status(500).json({ message: "Server error", error: error.message });
     }
   }
