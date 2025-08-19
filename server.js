@@ -1738,16 +1738,13 @@ app.post("/reset-password", async (req, res) => {
     
     console.log("🔐 Password type:", typeof newPassword, "Value:", newPassword ? "***PRESENT***" : "***MISSING***");
     
-    // Hash the new password (exactly like registration function)
-    console.log("🔐 About to call bcrypt.hash with:", {
-      password: newPassword,
-      type: typeof newPassword,
-      length: newPassword.length
-    });
-    
+    // Hash the new password using generated salt (aligns with bcryptjs expectations)
+    console.log("🔐 Generating bcrypt salt...");
     let hashedPassword;
     try {
-      hashedPassword = await bcrypt.hash(newPassword, 10);
+      const salt = await bcrypt.genSalt(10);
+      console.log("🔐 Salt generated:", typeof salt === 'string');
+      hashedPassword = await bcrypt.hash(newPassword, salt);
       console.log("✅ Bcrypt hash successful");
     } catch (bcryptError) {
       console.error("❌ Bcrypt hash failed:", bcryptError);
