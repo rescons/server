@@ -681,33 +681,82 @@ app.post(
 
 
 // Login User
+// app.post("/login", async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(400).json({ message: "User not found" });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+//     const token = jwt.sign({ id: user._id, uid: user.uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+//     res.json({ 
+//       message: "Login successful", 
+//       token, 
+//       uid: user.uid, 
+//       givenName: user.givenName, // Include first name
+//       fullName: user.fullName ,
+//       email: user.email,        // ✅ Add this
+//       country: user.country,    // ✅ Add this
+//       phone: user.phone         // Include full name if needed
+//     });
+
+//   } catch (error) {
+//     console.error("Error logging in user:", error);
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// });
+
+
+// Check if email exists
+app.post("/check-email", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "No registered email" });
+    }
+    res.json({ message: "Email exists" });
+  } catch (error) {
+    console.error("Error checking email:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Login (after email verified)
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user) return res.status(400).json({ message: "No registered email" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
 
-    const token = jwt.sign({ id: user._id, uid: user.uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(
+      { id: user._id, uid: user.uid },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-    res.json({ 
-      message: "Login successful", 
-      token, 
-      uid: user.uid, 
-      givenName: user.givenName, // Include first name
-      fullName: user.fullName ,
-      email: user.email,        // ✅ Add this
-      country: user.country,    // ✅ Add this
-      phone: user.phone         // Include full name if needed
+    res.json({
+      message: "Login successful",
+      token,
+      uid: user.uid,
+      givenName: user.givenName,
+      fullName: user.fullName,
+      email: user.email,
+      country: user.country,
+      phone: user.phone,
     });
-
   } catch (error) {
     console.error("Error logging in user:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 app.post("/create-order", async (req, res) => {
   try {
