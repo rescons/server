@@ -1793,6 +1793,29 @@ app.post("/reset-password", async (req, res) => {
   }
 });
 
+app.get("/admin/all-users", verifyAdminToken, async (req, res) => {
+  try {
+    const users = await User.find({}, {
+      uid: 1,
+      email: 1,
+      fullName: 1,
+      givenName: 1,
+      familyName: 1,
+      phone: 1,
+      country: 1,
+      affiliation: 1,
+      createdAt: 1,
+      payments: 1,
+      abstractSubmissions: 1
+    }).sort({ createdAt: -1 });
+    
+    res.json({ users });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // Start Server
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 //Auto Deploy Test Comment here
