@@ -1659,7 +1659,11 @@ app.delete("/delete-abstract-file/:uid", verifyToken, async (req, res) => {
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File size is too large. Maximum size is 5MB.' });
+      // Route-specific size hints
+      const pathHint = req.path.startsWith('/api/papers')
+        ? 'Maximum size is 20MB for paper uploads.'
+        : 'Maximum size is 5MB.';
+      return res.status(400).json({ message: `File size is too large. ${pathHint}` });
     }
     return res.status(400).json({ message: error.message });
   }
