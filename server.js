@@ -1704,11 +1704,15 @@ app.get("/get-abstract-by-code/:uid/:code", verifyToken, async (req, res) => {
 
 const invitationRoutes = require('./routes/invitationRoutes');
 const paperRoutes = require('./routes/paperRoutes');
+const downloadRoutes = require('./routes/downloadRoutes');
 
 console.log('🔗 Registering invitation routes...');
 app.use('/api', invitationRoutes);
 console.log('🔗 Registering paper routes...');
 app.use('/api/papers', paperRoutes);
+
+console.log('🔗 Registering download routes...');
+app.use('/api/downloads', downloadRoutes);
 
 // Test bcrypt functionality at startup
 console.log('🧪 Testing bcrypt at startup...');
