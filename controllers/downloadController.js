@@ -377,20 +377,29 @@ exports.addAllowedEmail = async (req, res) => {
     }
 
     const emailLower = email.toLowerCase().trim();
-    if (!allowedEmailDoc.emails.includes(emailLower)) {
-      allowedEmailDoc.emails.push(emailLower);
-      await allowedEmailDoc.save();
+
+    // ✅ Check if email already exists
+    if (allowedEmailDoc.emails.includes(emailLower)) {
+      return res.status(409).json({
+        message: "Email already present"
+      });
     }
 
-    res.json({ 
+    // ✅ Add new email
+    allowedEmailDoc.emails.push(emailLower);
+    await allowedEmailDoc.save();
+
+    res.status(201).json({
       message: "Email added successfully",
       emails: allowedEmailDoc.emails
     });
+
   } catch (error) {
     console.error("Error adding allowed email:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // Admin: Remove allowed email
 exports.removeAllowedEmail = async (req, res) => {
